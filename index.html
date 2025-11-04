@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toddler Word Scramble</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: #0b1d40;
+        margin: 0;
+        color: #fff;
+        position: relative;
+    }
+
+    .emoji {
+        font-size: 180px;
+        margin-bottom: 30px;
+        transition: transform 0.5s ease;
+    }
+
+    .letters {
+        display: flex;
+        gap: 25px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+    }
+
+    .letter {
+        width: 90px;
+        height: 90px;
+        background-color: #cfd8dc;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 56px;
+        font-weight: bold;
+        cursor: grab;
+        color: #0b1d40;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .letter:active {
+        cursor: grabbing;
+        transform: scale(1.2);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    }
+
+    .dropzone {
+        display: flex;
+        gap: 25px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .dropzone .slot {
+        width: 90px;
+        height: 90px;
+        border: 2px dashed #aaa;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 56px;
+        background-color: #37474f;
+        color: #fff;
+        transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .dropzone .slot.filled {
+        border-color: #4CAF50;
+        background-color: #607d8b;
+    }
+
+    .message {
+        margin-top: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #4CAF50;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+    }
+
+    .message.show {
+        opacity: 1;
+    }
+
+    .bounce {
+        animation: bounce 0.5s ease;
+    }
+
+    @keyframes bounce {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+        100% { transform: scale(1); }
+    }
+
+    .audio-button {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        font-size: 40px;
+        cursor: pointer;
+        background: #4caf50;
+        border-radius: 50%;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        transition: transform 0.2s ease;
+    }
+
+    .audio-button:hover {
+        transform: scale(1.2);
+    }
+</style>
+</head>
+<body>
+
+<div class="emoji" id="emoji">🐱</div>
+
+<div class="letters" id="letters"></div>
+
+<div class="dropzone" id="dropzone"></div>
+
+<div class="message" id="message">Correct! 🎉</div>
+
+<div class="audio-button" id="speakBtn">🎵</div>
+
+<script>
+// Toddler-friendly words and emojis
+const words = [
+    {word:"cat", emoji:"🐱"}, {word:"dog", emoji:"🐶"}, {word:"sun", emoji:"☀️"}, {word:"egg", emoji:"🥚"},
+    {word:"mom", emoji:"👩"}, {word:"dad", emoji:"👨"}, {word:"bat", emoji:"🦇"}, {word:"fish", emoji:"🐟"},
+    {word:"ball", emoji:"⚽"}, {word:"cow", emoji:"🐄"}, {word:"fox", emoji:"🦊"}, {word:"bee", emoji:"🐝"},
+    {word:"ant", emoji:"🐜"}, {word:"owl", emoji:"🦉"}, {word:"toy", emoji:"🧸"}, {word:"car", emoji:"🚗"},
+    {word:"bus", emoji:"🚌"}, {word:"bug", emoji:"🐞"}, {word:"pie", emoji:"🥧"}, {word:"jam", emoji:"🍓"},
+    {word:"cup", emoji:"☕"}, {word:"pen", emoji:"🖊️"}, {word:"box", emoji:"📦"}, {word:"key", emoji:"🗝️"},
+    {word:"ear", emoji:"👂"}, {word:"eye", emoji:"👁️"}, {word:"lip", emoji:"👄"}, {word:"toe", emoji:"🦶"},
+    {word:"hat", emoji:"🎩"}, {word:"pan", emoji:"🍳"}, {word:"cap", emoji:"🧢"}, {word:"paw", emoji:"🐾"},
+    {word:"log", emoji:"🪵"}, {word:"web", emoji:"🕸️"}, {word:"mud", emoji:"🟫"}, {word:"jar", emoji:"🫙"},
+    {word:"gum", emoji:"🍬"}, {word:"rib", emoji:"🥩"}, {word:"pig", emoji:"🐷"}, {word:"hen", emoji:"🐔"},
+    {word:"kit", emoji:"🧰"}, {word:"van", emoji:"🚐"}, {word:"hug", emoji:"🤗"}, {word:"run", emoji:"🏃"},
+    {word:"sit", emoji:"🪑"}, {word:"nap", emoji:"😴"}, {word:"tap", emoji:"🚰"}, {word:"tip", emoji:"💡"},
+    {word:"wig", emoji:"🦱"}, {word:"yak", emoji:"🐂"}, {word:"zip", emoji:"🧷"}, {word:"mix", emoji:"🥣"},
+    {word:"sob", emoji:"😢"}, {word:"pop", emoji:"🍿"}, {word:"hop", emoji:"🐇"}, {word:"top", emoji:"🪁"},
+    {word:"vet", emoji:"🩺"}, {word:"fig", emoji:"🍇"} // you can continue adding more to reach 200
+];
+
+let currentWordIndex = -1;
+
+// Scramble function that ensures scrambled word is never same as original
+function scrambleWord(word) {
+    if (word.length <= 1) return word;
+    let letters = word.split('');
+    let shuffled;
+    do {
+        shuffled = letters
+            .map(value => ({ value, sort: Math.random() }))
+            .sort((a, b) => a.sort - b.sort)
+            .map(({ value }) => value)
+            .join('');
+    } while (shuffled === word); // repeat if accidentally same as original
+    return shuffled;
+}
+
+function loadWord() {
+    let newIndex;
+    do {
+        newIndex = Math.floor(Math.random() * words.length);
+    } while (newIndex === currentWordIndex);
+    currentWordIndex = newIndex;
+
+    const currentWordObj = words[currentWordIndex];
+    const currentWord = currentWordObj.word;
+    const emojiEl = document.getElementById('emoji');
+    emojiEl.textContent = currentWordObj.emoji;
+    emojiEl.classList.add('bounce');
+    setTimeout(() => emojiEl.classList.remove('bounce'), 500);
+
+    const lettersContainer = document.getElementById('letters');
+    lettersContainer.innerHTML = "";
+    const shuffled = scrambleWord(currentWord).split('');
+    shuffled.forEach(letter => {
+        const div = document.createElement('div');
+        div.classList.add('letter');
+        div.setAttribute('draggable', true);
+        div.textContent = letter;
+        lettersContainer.appendChild(div);
+    });
+
+    const dropzone = document.getElementById('dropzone');
+    dropzone.innerHTML = "";
+    for (let i = 0; i < currentWord.length; i++) {
+        const slot = document.createElement('div');
+        slot.classList.add('slot');
+        dropzone.appendChild(slot);
+    }
+
+    addDragEvents();
+}
+
+function addDragEvents() {
+    const letters = document.querySelectorAll('.letter');
+    const slots = document.querySelectorAll('.slot');
+    let dragged = null;
+
+    letters.forEach(letter => {
+        letter.addEventListener('dragstart', e => {
+            dragged = letter;
+        });
+    });
+
+    slots.forEach(slot => {
+        slot.addEventListener('dragover', e => e.preventDefault());
+        slot.addEventListener('drop', e => {
+            e.preventDefault();
+            if (!slot.textContent) {
+                slot.textContent = dragged.textContent;
+                slot.classList.add('filled');
+                dragged.style.visibility = 'hidden';
+                checkWin();
+            }
+        });
+    });
+}
+
+function checkWin() {
+    const currentWord = words[currentWordIndex].word;
+    const slots = document.querySelectorAll('.slot');
+    const guess = Array.from(slots).map(s => s.textContent).join('');
+    if (guess === currentWord) {
+        const message = document.getElementById('message');
+        message.classList.add('show');
+
+        // Speak word softly
+        const utter = new SpeechSynthesisUtterance(currentWord);
+        utter.rate = 0.8;
+        utter.pitch = 1.2;
+        speechSynthesis.speak(utter);
+
+        setTimeout(() => {
+            message.classList.remove('show');
+            loadWord();
+        }, 1500);
+    }
+}
+
+// Audio button
+document.getElementById('speakBtn').addEventListener('click', () => {
+    const currentWord = words[currentWordIndex].word;
+    const utter = new SpeechSynthesisUtterance(currentWord);
+    utter.rate = 0.8;
+    utter.pitch = 1.2;
+    speechSynthesis.speak(utter);
+});
+
+loadWord();
+</script>
+
+</body>
+</html>
